@@ -1,19 +1,13 @@
-use actix::Arbiter;
-use actix_web::{
-    App,
-    HttpServer,
-    web,
-    HttpResponse,
-    Responder,
-    HttpRequest,
-    client::Client,
-};
+use actix_web::{App, HttpServer, web, HttpResponse, Responder, HttpRequest, client::Client, Error};
 use serde::{Deserialize, Serialize};
 
 use chashmap::CHashMap;
 use std::ops::Deref;
-use bytes::buf::Buf;
-use std::collections::HashSet;
+use std::thread;
+use core::borrow::Borrow;
+use actix_rt;
+use std::rc::Rc;
+use futures_util::future::try_future::TryFutureExt;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Subscription {
@@ -28,11 +22,14 @@ struct Subscriber {
 struct AppState {
     client: Client,
     storage: CHashMap<String, web::Bytes>,
-    subscribers: CHashMap<String, HashSet<Subscriber>>,
+    subscribers: CHashMap<String, CHashMap<String, Subscriber>>,
 }
 
 
-async fn get(data: web::Data<AppState>, key: web::Path<String>) -> impl Responder {
+async fn get(
+    data: web::Data<AppState>,
+    key: web::Path<String>,
+) -> impl Responder {
     println!("{}", key);
     let result = String::from_utf8(data
         .storage
@@ -46,20 +43,19 @@ async fn get(data: web::Data<AppState>, key: web::Path<String>) -> impl Responde
 }
 
 async fn set(
-    req: HttpRequest,
+    _req: HttpRequest,
     state: web::Data<AppState>,
     key: web::Path<String>,
     value: web::Bytes,
 ) -> impl Responder {
-    let k = key.into_inner();
-    if let Some(read_guard) = state.subscribers.get(&k) {
-        let rg_itr = read_guard.iter().clone();
-        for subscriber in rg_itr {
-            state.client.get(&subscriber.callback_url).send();
+    if let Some(subs) = &state.subscribers.get(&key.clone()) {
+        let subss = *subs.into_iter();
+        for (subscriber, _) in *subss {
+            state.client.get(&subscriber).send();
         }
     }
     println!("{}", String::from_utf8(value.to_vec()).unwrap_or("".to_string()));
-    &state.storage.insert_new(k, value);
+    &state.storage.insert(key.into_inner(), value);
     HttpResponse::Ok()
 }
 
@@ -68,7 +64,22 @@ async fn sub(
     key: web::Path<String>,
     body: web::Json<Subscription>,
 ) -> impl Responder {
-    &state.subscribers.insert_new(key.into_inner(), HashSet::new());
+
+    match &state.subscribers.get(&key.clone()) {
+        Some(subs) => {
+            subs.insert(body.callback_url.clone(), Subscriber {
+                callback_url: body.callback_url.clone(),
+                failed_attempts: 032,
+            });
+            if let Some(sub) = subs.get(&body.callback_url) {
+
+            }
+        },
+        None => {
+            &state.subscribers.insert(key.into_inner(), CHashMap::new());
+        },
+
+    }
     HttpResponse::Ok()
 }
 
