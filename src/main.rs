@@ -1,13 +1,11 @@
 use actix_web::{App, HttpServer, web, HttpResponse, Responder, HttpRequest, client::Client, Error};
 use serde::{Deserialize, Serialize};
-
 use chashmap::CHashMap;
 use std::ops::Deref;
-use std::thread;
-use core::borrow::Borrow;
 use actix_rt;
-use std::rc::Rc;
-use futures_util::future::try_future::TryFutureExt;
+use awc::SendClientRequest;
+
+//use futures_util::future::try_future::TryFutureExt;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Subscription {
@@ -49,10 +47,12 @@ async fn set(
     value: web::Bytes,
 ) -> impl Responder {
     if let Some(subs) = &state.subscribers.get(&key.clone()) {
-        let subss = *subs.into_iter();
-        for (subscriber, _) in *subss {
-            state.client.get(&subscriber).send();
-        }
+        subs.retain(| url, _ | {
+            match state.client.post(url).send_body(value.clone()) {
+                SendClientRequest::Fut(_, _, _) => true,
+                SendClientRequest::Err(_) => false,
+            }
+        });
     }
     println!("{}", String::from_utf8(value.to_vec()).unwrap_or("".to_string()));
     &state.storage.insert(key.into_inner(), value);
