@@ -1,11 +1,20 @@
-use actix_web::{App, HttpServer, web, HttpResponse, Responder, HttpRequest, client::Client, Error};
+use actix_web::{
+    App,
+    HttpServer,
+    web,
+    HttpResponse,
+    Responder,
+    HttpRequest,
+    client::Client,
+    Error,
+
+};
 use serde::{Deserialize, Serialize};
 use chashmap::CHashMap;
 use std::ops::Deref;
 use actix_rt;
 use awc::SendClientRequest;
 use atomic_counter::{RelaxedCounter, AtomicCounter};
-//use futures_util::future::try_future::TryFutureExt;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Subscription {
@@ -95,7 +104,7 @@ async fn sub(
 }
 
 #[actix_rt::main]
-async fn main() -> std::result::Result<(), std::io::Error> {
+pub async fn main() -> std::result::Result<(), std::io::Error> {
     let server = HttpServer::new(|| {
         App::new()
             .data(AppState {

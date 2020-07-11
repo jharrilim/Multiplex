@@ -1,6 +1,9 @@
 # Multiplex
 
-## Start
+Multiplex is a key-value store with the ability to publish and subscribe
+to keys.
+
+## Running the Application
 
 Runs on http://localhost:8080
 
