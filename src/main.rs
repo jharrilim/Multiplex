@@ -6,21 +6,19 @@ use actix_web::{
     Responder,
     HttpRequest,
     client::Client,
-    Error,
-
 };
 use serde::{Deserialize, Serialize};
 use chashmap::CHashMap;
-use std::ops::Deref;
 use actix_rt;
 use awc::SendClientRequest;
 use atomic_counter::{RelaxedCounter, AtomicCounter};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct Subscription {
     callback_url: String,
 }
 
+#[derive(Debug)]
 struct Subscriber {
     failed_attempts: RelaxedCounter,
     callback_url: String,
@@ -34,19 +32,20 @@ struct AppState {
 
 
 async fn get(
-    data: web::Data<AppState>,
+    state: web::Data<AppState>,
     key: web::Path<String>,
 ) -> impl Responder {
-    println!("{}", key);
-    let result = String::from_utf8(data
-        .storage
-        .get(&key.into_inner())
-        .unwrap()
-        .deref()
-        .to_vec()
-    ).unwrap();
-    println!("{}", &result);
-    HttpResponse::Ok().body(result)
+    match state.storage.get(&key.into_inner()) {
+        Some(rec) => {
+            if let Ok(value) = String::from_utf8(rec.to_vec()) {
+                return HttpResponse::Ok().body(value);
+            }
+            HttpResponse::UnprocessableEntity().finish()
+        },
+        None => {
+            HttpResponse::NotFound().finish()
+        },
+    }
 }
 
 async fn set(
@@ -74,7 +73,7 @@ async fn set(
             }
         });
     }
-    println!("{}", String::from_utf8(value.to_vec()).unwrap_or("".to_string()));
+    println!("[SET] {}", String::from_utf8(value.to_vec()).unwrap_or("".to_string()));
     &state.storage.insert(key.into_inner(), value);
     HttpResponse::Ok()
 }
@@ -84,21 +83,21 @@ async fn sub(
     key: web::Path<String>,
     body: web::Json<Subscription>,
 ) -> impl Responder {
-
     match &state.subscribers.get(&key.clone()) {
         Some(subs) => {
             subs.insert(body.callback_url.clone(), Subscriber {
                 callback_url: body.callback_url.clone(),
                 failed_attempts: RelaxedCounter::new(0),
             });
-            if let Some(sub) = subs.get(&body.callback_url) {
-
-            }
         },
         None => {
-            &state.subscribers.insert(key.into_inner(), CHashMap::new());
+            let map = CHashMap::new();
+            map.insert(body.callback_url.clone(), Subscriber {
+                callback_url: body.callback_url.clone(),
+                failed_attempts: RelaxedCounter::new(0),
+            });
+            &state.subscribers.insert(key.into_inner(), map);
         },
-
     }
     HttpResponse::Ok()
 }
