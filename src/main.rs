@@ -12,6 +12,7 @@ use chashmap::CHashMap;
 use actix_rt;
 use awc::SendClientRequest;
 use atomic_counter::{RelaxedCounter, AtomicCounter};
+use ctrlc;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct Subscription {
@@ -111,13 +112,15 @@ pub async fn main() -> std::result::Result<(), std::io::Error> {
                 storage: CHashMap::new(),
                 subscribers: CHashMap::new(),
             })
-            .route("/get/{key}", web::get().to(get))
-            .route("/set/{key}", web::post().to(set))
+            .route("/store/{key}", web::get().to(get))
+            .route("/store/{key}", web::post().to(set))
             .route("/sub/{key}", web::post().to(sub))
     })
         .bind("127.0.0.1:8080")?
         .run();
     println!("Started server at http://localhost:8080");
-
+    ctrlc::set_handler(move || {
+        println!("Shutting down multiplex server.");
+    }).expect("Error setting ctrl-c handler.");
     server.await
 }

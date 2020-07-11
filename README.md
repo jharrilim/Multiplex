@@ -13,10 +13,10 @@ cargo run
 
 ## Routes
 
-### [GET] /get/{key}
+### [GET] /store/{key}
 
 Get's a value that was set for this key.
 
-### [SET] /set/{key}
+### [SET] /store/{key}
 
 Set's a value for the given key using a raw string in the request body.

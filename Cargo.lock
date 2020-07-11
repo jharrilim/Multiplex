@@ -469,6 +469,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctrlc"
+version = "3.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54dedab740bc412d514cfbc4a1d9d5d16fed02c4b14a7be129003c07fdc33b9b"
+dependencies = [
+ "nix",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "derive_more"
 version = "0.99.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -992,6 +1002,7 @@ dependencies = [
  "awc",
  "bytes",
  "chashmap",
+ "ctrlc",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1006,6 +1017,19 @@ dependencies = [
  "cfg-if",
  "libc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "nix"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50e4785f2c3b7589a0d0c1dd60285e1188adac4006e8abd6dd578e1567027363"
+dependencies = [
+ "bitflags",
+ "cc",
+ "cfg-if",
+ "libc",
+ "void",
 ]
 
 [[package]]
@@ -1626,6 +1650,12 @@ dependencies = [
  "matches",
  "percent-encoding",
 ]
+
+[[package]]
+name = "void"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "wasi"
