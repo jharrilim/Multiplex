@@ -4,7 +4,7 @@ use chashmap::CHashMap;
 use std::ops::Deref;
 use actix_rt;
 use awc::SendClientRequest;
-
+use atomic_counter::{RelaxedCounter, AtomicCounter};
 //use futures_util::future::try_future::TryFutureExt;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ struct Subscription {
 }
 
 struct Subscriber {
-    failed_attempts: i32,
+    failed_attempts: RelaxedCounter,
     callback_url: String,
 }
 
@@ -47,10 +47,21 @@ async fn set(
     value: web::Bytes,
 ) -> impl Responder {
     if let Some(subs) = &state.subscribers.get(&key.clone()) {
-        subs.retain(| url, _ | {
+        subs.retain(| url, sub | {
             match state.client.post(url).send_body(value.clone()) {
-                SendClientRequest::Fut(_, _, _) => true,
-                SendClientRequest::Err(_) => false,
+                SendClientRequest::Fut(_, _, _) => {
+                    if sub.failed_attempts.get() > 0 {
+                        sub.failed_attempts.reset();
+                    }
+                    true
+                },
+                SendClientRequest::Err(_) => {
+                    sub.failed_attempts.inc();
+                    if (*sub).failed_attempts.get() > 20 {
+                        return false;
+                    }
+                    true
+                },
             }
         });
     }
@@ -69,7 +80,7 @@ async fn sub(
         Some(subs) => {
             subs.insert(body.callback_url.clone(), Subscriber {
                 callback_url: body.callback_url.clone(),
-                failed_attempts: 032,
+                failed_attempts: RelaxedCounter::new(0),
             });
             if let Some(sub) = subs.get(&body.callback_url) {
 
