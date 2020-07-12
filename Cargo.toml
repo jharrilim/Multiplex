@@ -18,6 +18,7 @@ atomic-counter = "1.0.1"
 awc = "1.0.1"
 chashmap = "2.2.2"
 ctrlc = { version = "3.0", features = ["termination"] }
+evmap = "10.0.2"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
